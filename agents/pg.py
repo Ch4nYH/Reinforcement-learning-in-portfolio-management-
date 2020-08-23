@@ -23,6 +23,7 @@ class PG:
         self.M = M
         self.L = L
         self.N = N
+        self.cost = 0.0025
         self.global_step = tf.Variable(0, trainable=False)
 
         self.state, self.w_previous, self.out = self.build_net()
@@ -33,7 +34,7 @@ class PG:
         self.loss = -tf.reduce_mean(tf.log(self.pv_vector))
         self.optimize = tf.train.AdamOptimizer(self.learning_rate)\
             .minimize(self.loss, global_step=self.global_step)
-        self.cost = 0.0025
+        
         # Initial saver
         self.saver = tf.train.Saver(max_to_keep=10)
 
