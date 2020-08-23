@@ -67,8 +67,8 @@ def session(config, args):
         env.get_data(test_start_date, test_end_date, features, window_length, market, codes)
         if framework == 'PG':
             print("Loading PG Agent")
-            agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False, True, args.num)
+            agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False, args.num)
         elif framework == 'DDPG':
             print("Loading DDPG Agent")
-            agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False)
+            agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False, args.num)
         backtest([agent], env, "", framework)
