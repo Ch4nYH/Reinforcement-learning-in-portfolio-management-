@@ -2,15 +2,11 @@ import math
 import numpy as np
 from trader import StockTrader
 import matplotlib.pyplot as plt
-
-from agents.pg import PG
-from agents.ddpg import DDPG
 from agents.UCRP import UCRP
-from agents.Winner import WINNER
-from agents.Losser import LOSSER
+
 
 def parse_info(info):
-    return info['reward'],info['continue'],info[ 'next state'],info['weight vector'],info ['price'],info['risk']
+    return info['reward'], info['continue'], info['next state'], info['weight vector'], info['price'], info['risk']
 
 
 def traversal(stocktrader, agent, env, epoch, noise_flag, framework, method, trainable):
@@ -20,9 +16,9 @@ def traversal(stocktrader, agent, env, epoch, noise_flag, framework, method, tra
     t = 0
 
     while done:
-        w2 = agent.predict(state,w1)
-        env_info = env.step(w1, w2,noise_flag)
-        r, done, s_next, w1, p,risk = parse_info(env_info)
+        w2 = agent.predict(state, w1)
+        env_info = env.step(w1, w2, noise_flag)
+        r, done, s_next, w1, p, risk = parse_info(env_info)
         if framework == 'PG':
             agent.save_transition(state, p, w2, w1)
         else:
@@ -48,18 +44,16 @@ def traversal(stocktrader, agent, env, epoch, noise_flag, framework, method, tra
                 agent.train()
 
         stocktrader.update_summary(loss, r, q_value, actor_loss, w2, p)
-        s = s_next
         t = t + 1
 
 
-
-def backtest(agent, env, path):
+def backtest(agent, env, path, framework):
     print("starting to backtest......")
 
     agents = []
     agents.extend(agent)
     agents.append(UCRP())
-    labels = ['DDPG','UCRP']
+    labels = [framework, 'UCRP']
 
     wealths_result = []
     rs_result = []
@@ -87,17 +81,18 @@ def backtest(agent, env, path):
         wealths_result.append(wealths)
         rs_result.append(rs)
 
-    print('资产名称','   ','平均日收益率','   ','夏普率','   ','最大回撤')
+    print('资产名称', '   ', '平均日收益率', '   ', '夏普率', '   ', '最大回撤')
     plt.figure(figsize=(8, 6), dpi=100)
     for i in range(len(agents)):
         plt.plot(wealths_result[i], label=labels[i])
         mrr = float(np.mean(rs_result[i])*100)
         sharpe = float(np.mean(rs_result[i])/np.std(rs_result[i])*np.sqrt(252))
         maxdrawdown = float(max(1 - min(wealths_result[i]) / np.maximum.accumulate(wealths_result[i])))
-        print(labels[i], '   ', round(mrr,3), '%', '   ', round(sharpe,3), '  ', round(maxdrawdown, 3))
+        print(labels[i], '   ', round(mrr, 3), '%', '   ', round(sharpe, 3), '  ', round(maxdrawdown, 3))
     plt.legend()
     plt.savefig(path + 'backtest.png')
     plt.show()
+
 
 def parse_config(config, mode):
     num_codes = config["num_codes"]
@@ -131,7 +126,6 @@ def parse_config(config, mode):
     print("Noise_flag", noise_flag)
     print("Record_flag", record_flag)
     print("Plot_flag", plot_flag)
-
 
     return num_codes, start_date, end_date, features, agent_config, market, predictor, framework, window_length, \
         noise_flag, record_flag, plot_flag, reload_flag, trainable, method

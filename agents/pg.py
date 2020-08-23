@@ -34,7 +34,7 @@ class PG:
         self.loss = -tf.reduce_mean(tf.log(self.pv_vector))
         self.optimize = tf.train.AdamOptimizer(self.learning_rate)\
             .minimize(self.loss, global_step=self.global_step)
-        
+
         # Initial saver
         self.saver = tf.train.Saver(max_to_keep=10)
 
@@ -86,7 +86,7 @@ class PG:
                                    padding="valid",
                                    activation="relu",
                                    kernel_regularizer=tf.keras.regularizers.l2(9e-5))(network)
-                                   
+           
         network = tf.layers.flatten(network)
         w_init = tf.random_uniform_initializer(-0.005, 0.005)
         out = tf.layers.dense(network, self.M,

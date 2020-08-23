@@ -22,7 +22,7 @@ def session(config, args):
     if args.mode == 'train':
         if not os.path.exists(path):
             os.makedirs(path)
-            train_start_date, train_end_date, test_start_date, test_end_date, codes = env.get_repo(start_date, end_date,codes, market)
+            train_start_date, train_end_date, test_start_date, test_end_date, codes = env.get_repo(start_date, end_date, codes, market)
             print(codes)
             env.get_data(train_start_date, train_end_date, features, window_length, market, codes)
             with open(path + 'config.json', 'w') as f:
@@ -67,8 +67,8 @@ def session(config, args):
         env.get_data(test_start_date, test_end_date, features, window_length, market, codes)
         if framework == 'PG':
             print("Loading PG Agent")
-            agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False, True,args.num)
+            agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False, True, args.num)
         elif framework == 'DDPG':
             print("Loading DDPG Agent")
             agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False)
-        backtest([agent], env, "")
+        backtest([agent], env, "", framework)
