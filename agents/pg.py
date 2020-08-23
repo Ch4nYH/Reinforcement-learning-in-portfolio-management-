@@ -86,9 +86,9 @@ class PG:
                                    padding="valid",
                                    activation="relu",
                                    kernel_regularizer=tf.keras.regularizers.l2(9e-5))(network)
-           
+
         network = tf.layers.flatten(network)
-        w_init = tf.random_uniform_initializer(-0.005, 0.005)
+        w_init = tf.random_uniform_initializer(-0.5, 0.5)
         out = tf.layers.dense(network, self.M,
                               activation=tf.nn.softmax, kernel_initializer=w_init)
 

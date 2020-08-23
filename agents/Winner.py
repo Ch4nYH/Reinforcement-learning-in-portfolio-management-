@@ -7,7 +7,7 @@
 import numpy as np
 
 
-class WINNER:
+class Winner:
     def __init__(self):
         self.a_dim = 0
 

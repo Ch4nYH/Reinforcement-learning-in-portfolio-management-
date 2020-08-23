@@ -1,4 +1,4 @@
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 '''
 @Author: Louis Liang
 @time:2018/9/15 9:36
@@ -6,11 +6,12 @@
 
 import numpy as np
 
-class LOSSER:
-    def __init__(self):
-        self.a_dim=0
 
-    def predict(self,s,a):
+class Loser:
+    def __init__(self):
+        self.a_dim = 0
+
+    def predict(self, s, a):
         close = []
         for i, prices in enumerate(s[0]):
             closes = prices[-1]

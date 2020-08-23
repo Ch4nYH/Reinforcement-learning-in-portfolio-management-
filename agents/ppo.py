@@ -138,7 +138,7 @@ class PPO(object):
 
         # Initial saver
         self.saver = tf.train.Saver(max_to_keep=3)
-        if load_weights=="True":
+        if load_weights:
             print("Loading Model")
             try:
                 checkpoint = tf.train.get_checkpoint_state(self.result_save_path)

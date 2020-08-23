@@ -39,7 +39,7 @@ def session(config, args):
 
         if framework == 'PG':
             print("*-----------------Loading PG Agent---------------------*")
-            agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable, 'True', args.num)
+            agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable, True, args.num)
         elif framework == 'DDPG':
             print("*-----------------Loading DDPG Agent---------------------*")
             agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable)
@@ -56,7 +56,7 @@ def session(config, args):
                 stocktrader.plot_result()
 
             agent.reset_buffer()
-            stocktrader.print_result(epoch, agent, 'True')
+            stocktrader.print_result(epoch, agent, True)
             stocktrader.reset()
         agent.close()
 

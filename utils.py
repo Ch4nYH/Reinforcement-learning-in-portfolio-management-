@@ -3,6 +3,8 @@ import numpy as np
 from trader import StockTrader
 import matplotlib.pyplot as plt
 from agents.UCRP import UCRP
+from agents.Loser import Loser
+from agents.Winner import Winner
 
 
 def parse_info(info):
@@ -40,7 +42,7 @@ def traversal(stocktrader, agent, env, epoch, noise_flag, framework, method, tra
                     actor_loss = agent_info["actor_loss"]
 
         elif framework == 'PG':
-            if not done and trainable == "True":
+            if not done and trainable:
                 agent.train()
 
         stocktrader.update_summary(loss, r, q_value, actor_loss, w2, p)
@@ -53,7 +55,9 @@ def backtest(agent, env, path, framework):
     agents = []
     agents.extend(agent)
     agents.append(UCRP())
-    labels = [framework, 'UCRP']
+    agents.append(Loser())
+    agents.append(Winner())
+    labels = [framework, 'UCRP', "Loser", "Winner"]
 
     wealths_result = []
     rs_result = []
@@ -68,7 +72,7 @@ def backtest(agent, env, path, framework):
         while done:
             w2 = agent.predict(s, w1)
             print(w2)
-            env_info = env.step(w1, w2, 'False')
+            env_info = env.step(w1, w2, False)
             r, done, s_next, w1, p, risk = parse_info(env_info)
             wealth = wealth * math.exp(r)
             rs.append(math.exp(r)-1)
