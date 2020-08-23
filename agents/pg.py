@@ -9,13 +9,12 @@ import os
 
 
 class PG:
-    def __init__(self, M, L, N, name, load_weights, trainable, type, number):
+    def __init__(self, M, L, N, name, load_weights, trainable, number):
         # Initial buffer
         self.buffer = list()
         self.name = name
         self.learning_rate = 10e-3
-        self.number = str(number)
-        self.type = type
+        self.number = number
         # Build up models
         self.session = tf.Session()
 
@@ -42,10 +41,7 @@ class PG:
             print("Loading Model")
             try:
                 checkpoint = \
-                    tf.train.get_checkpoint_state('./result/PG/' +
-                                                  self.number+'/' +
-                                                  'saved_network/'+type+'/')
-                print('./saved_network/PG/' + type + '/')
+                    tf.train.get_checkpoint_state('./result/PG/{}/{}/saved_network/'.format(self.name, self.number))
                 if checkpoint and checkpoint.model_checkpoint_path:
                     tf.reset_default_graph()
                     self.saver.restore(self.session,
@@ -64,7 +60,7 @@ class PG:
 
         if trainable:
             # Initial summary
-            self.summary_writer = tf.summary.FileWriter('./result/PG/',
+            self.summary_writer = tf.summary.FileWriter('./result/PG/{}/{}/'.format(self.name, self.number),
                                                         self.session.graph)
             self.summary_ops, self.summary_vars = self.build_summaries()
 
@@ -124,7 +120,7 @@ class PG:
         self.buffer = list()
 
     def save_model(self):
-        path = './result/PG/' + self.number + '/' + 'saved_network/' + self.type + '/'
+        path = './result/PG/{}/{}/saved_network/'.format(self.name, self.number)
         if not os.path.exists(path):
             os.makedirs(path)
         self.saver.save(self.session, path + self.name, global_step=self.global_step)

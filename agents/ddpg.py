@@ -257,7 +257,7 @@ def build_summaries():
 
 
 class DDPG:
-    def __init__(self, M, L, N, name, load_weights, trainable):
+    def __init__(self, M, L, N, name, load_weights, trainable, number):
         # Initial buffer
         self.buffer = list()
         self.name = name
@@ -266,7 +266,7 @@ class DDPG:
         self.actor = StockActor(self.session, M, L, N)
         self.critic = StockCritic(self.session, M, L, N)
         self.global_step = tf.Variable(0, trainable=False)
-
+        self.number = number
         # Initial Hyperparameters
         self.gamma = 0.99
         # Initial saver
@@ -275,7 +275,7 @@ class DDPG:
         if load_weights:
             print("Loading Model")
             try:
-                checkpoint = tf.train.get_checkpoint_state('./result/DDPG')
+                checkpoint = tf.train.get_checkpoint_state('./result/DDPG/{}/{}/saved_network/'.format(self.name, self.number))
                 if checkpoint and checkpoint.model_checkpoint_path:
                     self.saver.restore(self.session, checkpoint.model_checkpoint_path)
                     print("Successfully loaded:", checkpoint.model_checkpoint_path)
@@ -290,7 +290,7 @@ class DDPG:
 
         if trainable:
             # Initial summary
-            self.summary_writer = tf.summary.FileWriter('./summary/DDPG', self.session.graph)
+            self.summary_writer = tf.summary.FileWriter('./result/PG/{}/{}/'.format(self.name, self.number), self.session.graph)
             self.summary_ops, self.summary_vars = build_summaries()
 
     # online actor
@@ -346,7 +346,7 @@ class DDPG:
         return s, a, r, not_terminal, s_next, action_previous
 
     def save_model(self):
-        self.saver.save(self.session, './result/DDPG/' + self.name, global_step=self.global_step)
+        self.saver.save(self.session, './result/PG/{}/{}/saved_network/'.format(self.name, self.number), global_step=self.global_step)
 
     '''
     def write_summary(self,Loss,reward,ep_ave_max_q,actor_loss,epoch):

@@ -39,10 +39,10 @@ def session(config, args):
 
         if framework == 'PG':
             print("*-----------------Loading PG Agent---------------------*")
-            agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable, True, args.num)
+            agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable, args.num)
         elif framework == 'DDPG':
             print("*-----------------Loading DDPG Agent---------------------*")
-            agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable)
+            agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable, args.num)
 
         print("Training with {:d}".format(args.epochs))
         for epoch in range(args.epochs):
