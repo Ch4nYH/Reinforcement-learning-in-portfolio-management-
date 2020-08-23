@@ -16,7 +16,6 @@ class Environment:
     def get_repo(self, start_date, end_date, codes_num, market):
         self.data = pd.read_csv('./data/China.csv', index_col=0, parse_dates=True, dtype=object)
         self.data["code"] = self.data["code"].astype(str)
-        
         sample_flag = True
         random.seed(self.seed)
         while sample_flag:
@@ -84,7 +83,7 @@ class Environment:
         length = len(self.date_set)
         while t < length - 1:
             state_close = np.ones(self.L)
-            if 'high' in features: 
+            if 'high' in features:
                 state_high = np.ones(self.L)
             if 'open' in features:
                 state_open = np.ones(self.L)
@@ -102,7 +101,7 @@ class Environment:
                 if 'open' in features:
                     state_open = np.vstack((state_open, asset_data.iloc[t - self.L - 1:t - 1]['open']))
                 r = np.vstack((r, asset_data.iloc[t]['close'] / asset_data.iloc[t - 1]['close']))
-                
+
             state.append(state_close)
             if 'high' in features:
                 state.append(state_high)
