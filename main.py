@@ -5,6 +5,7 @@ from session import session
 import random
 import tensorflow as tf
 
+
 def main():
     args = parser_args()
     tf.set_random_seed(args.seed)
@@ -18,5 +19,6 @@ def main():
         else:
             session(config, args)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main() 

@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
-import time
 import random
 import numpy as np
 import pandas as pd
-from math import log
-from datetime import datetime
+
 
 def fill_zeros(x):
-    return '0'*(6-len(x))+x
+    return '0'*(6-len(x)) + x
+
+
 class Environment:
-    def __init__(self, seed = 1):
-        self.cost=0.0025
+    def __init__(self, seed=1):
+        self.cost = 0.0025
         self.seed = seed
 
     def get_repo(self, start_date, end_date, codes_num, market):
-        self.data = pd.read_csv('./data/china.csv', index_col = 0, parse_dates = True, dtype = object)
+        self.data = pd.read_csv('./data/china.csv', index_col=0, parse_dates=True, dtype=object)
         self.data["code"] = self.data["code"].astype(str)
         
         sample_flag = True
@@ -38,12 +38,11 @@ class Environment:
         test_start_time = self.date_set[int(len(self.date_set) / 6) * 5]
         test_end_time = self.date_set[-1]
 
-        return train_start_time,train_end_time,test_start_time,test_end_time,codes
+        return train_start_time, train_end_time, test_start_time, test_end_time, codes
 
-    def get_data(self,start_time,end_time,features,window_length,market,codes):
-        self.codes=codes
-
-        self.data = pd.read_csv(r'./data/china.csv', index_col = 0, parse_dates = True, dtype = object)
+    def get_data(self, start_time, end_time, features, window_length, market, codes):
+        self.codes = codes
+        self.data = pd.read_csv(r'./data/china.csv', index_col=0, parse_dates=True, dtype=object)
         self.data["code"] = self.data["code"].astype(str)
         self.data[features] = self.data[features].astype(float)
         self.data = self.data[start_time.strftime("%Y-%m-%d"):end_time.strftime("%Y-%m-%d")]
@@ -58,7 +57,7 @@ class Environment:
         for asset in codes:
             asset_data = data[data["code"] == asset].reindex(self.date_set).sort_index()
             asset_data = asset_data.resample('D').mean()
-            asset_data['close'] = asset_data['close'].fillna(method = 'pad')
+            asset_data['close'] = asset_data['close'].fillna(method='pad')
             base_price = asset_data.iloc[-1]['close']
             asset_dict[str(asset)] = asset_data
             asset_dict[str(asset)]['close'] = asset_dict[str(asset)]['close'] / base_price
@@ -72,14 +71,13 @@ class Environment:
             if 'open' in features:
                 asset_dict[str(asset)]['open'] = asset_dict[str(asset)]['open'] / base_price
 
-            asset_data = asset_data.fillna(method = 'bfill', axis = 1)
-            asset_data = asset_data.fillna(method = 'ffill', axis = 1)#根据收盘价填充其他值
-            #***********************open as preclose*******************#
-            #asset_data=asset_data.dropna(axis=0,how='any')
+            asset_data = asset_data.fillna(method='bfill', axis=1)
+            asset_data = asset_data.fillna(method='ffill', axis=1)  # 根据收盘价填充其他值
+            # ***********************open as preclose*******************#
+            # asset_data=asset_data.dropna(axis=0,how='any')
             asset_dict[str(asset)] = asset_data
 
-
-        #开始生成tensor
+        # 开始生成tensor
         self.states = []
         self.price_history = []
         t = self.L + 1
@@ -92,8 +90,6 @@ class Environment:
                 state_open = np.ones(self.L)
             if 'low' in features:
                 state_low = np.ones(self.L)
-
-
             r = np.ones(1)
             state = []
             for asset in codes:
@@ -102,7 +98,7 @@ class Environment:
                 if 'high' in features:
                     state_high = np.vstack((state_high, asset_data.iloc[t - self.L - 1:t - 1]['high']))
                 if 'low' in features:
-                    state_low = np.vstack((state_low, asset_data.iloc[ t -self.L - 1:t - 1]['low']))
+                    state_low = np.vstack((state_low, asset_data.iloc[t - self.L - 1:t - 1]['low']))
                 if 'open' in features:
                     state_open = np.vstack((state_open, asset_data.iloc[t - self.L - 1:t - 1]['open']))
                 r = np.vstack((r, asset_data.iloc[t]['close'] / asset_data.iloc[t - 1]['close']))
@@ -119,22 +115,19 @@ class Environment:
             state = state.reshape(1, self.M, self.L, self.N)
             self.states.append(state)
             self.price_history.append(r)
-            t = t + 1 
+            t = t + 1
         self.reset()
 
-
-    def step(self, w1, w2, noise): # w1为过去的动作, w2为当前的动作
+    def step(self, w1, w2, noise):  # w1为过去的动作, w2为当前的动作
         if self.done:
             not_terminal = 1
             price = self.price_history[self.t]
-            if noise == 'True':
-                price = price + np.stack(np.random.normal(0, 0.002,(1,len(price))),axis=1)
+            if noise:
+                price = price + np.stack(np.random.normal(0, 0.002, (1, len(price))), axis=1)
             mu = self.cost * (np.abs(w2[0][1:] - w1[0][1:])).sum()
 
             risk = 0
             r = (np.dot(w2, price)[0] - mu)[0]
-
-
             reward = np.log(r + 1e-10)
 
             w2 = w2 / (np.dot(w2, price) + 1e-10)
@@ -145,14 +138,14 @@ class Environment:
 
             price = np.squeeze(price)
             info = {'reward': reward, 'continue': not_terminal, 'next state': self.states[self.t],
-                    'weight vector': w2, 'price': price,'risk': risk}
+                    'weight vector': w2, 'price': price, 'risk': risk}
             return info
         else:
             info = {'reward': 0, 'continue': 1, 'next state': self.states[self.t],
-                        'weight vector': np.array([[1] + [0 for i in range(self.M - 1)]]),
-                        'price': self.price_history[self.t], 'risk':0}
+                    'weight vector': np.array([[1] + [0 for i in range(self.M - 1)]]),
+                    'price': self.price_history[self.t], 'risk': 0}
 
-            self.done=True
+            self.done = True
             return info
 
     def reset(self):

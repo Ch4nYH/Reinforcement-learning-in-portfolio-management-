@@ -30,14 +30,14 @@ def traversal(stocktrader, agent, env, epoch, noise_flag, framework, method, tra
         loss, q_value, actor_loss = 0, 0, 0
 
         if framework == 'DDPG':
-            if not done and trainable == "True":
+            if not done and trainable:
                 agent_info = agent.train(method, epoch)
                 loss, q_value = agent_info["critic_loss"], agent_info["q_value"]
                 if method == 'model_based':
                     actor_loss = agent_info["actor_loss"]
 
         elif framework == 'PPO':
-            if not done and trainable == "True":
+            if not done and trainable:
                 agent_info = agent.train(method, epoch)
                 loss, q_value = agent_info["critic_loss"], agent_info["q_value"]
                 if method == 'model_based':
@@ -65,7 +65,7 @@ def backtest(agent, env, path):
     rs_result = []
     for i, agent in enumerate(agents):
         stocktrader = StockTrader()
-        info = env.step(None, None,'False')
+        info = env.step(None, None, False)
         r, done, s, w1, p, risk = parse_info(info)
         done = 1
         wealth = 10000000

@@ -5,24 +5,27 @@ Created on Mon Aug  6 08:59:35 2018
 @author: Administrator
 """
 import tensorflow as tf
-from collections import deque
 import numpy as np
-import random
 
-tf_summaries_list=[]
+tf_summaries_list = []
+
 
 def res_block(x, trainable, scope):
     with tf.name_scope(scope):
-        shortcut=x
-        conv1_W = tf.Variable(tf.random_normal([1, 1, 32, 32], stddev = 0.15), trainable = trainable)
-        x = tf.nn.conv2d(x, filter = conv1_W, strides = [1, 1, 1, 1], padding = 'SAME')
+        shortcut = x
+        conv1_W = tf.Variable(tf.random_normal([1, 1, 32, 32], stddev=0.15), 
+                              trainable=trainable)
+        x = tf.nn.conv2d(x, filter=conv1_W, strides=[1, 1, 1, 1], 
+                         padding='SAME')
         x = tf.layers.batch_normalization(x)
         x = tf.nn.relu(x)
 
-        conv2_W = tf.Variable(tf.random_normal([1, 1, 32, 32], stddev = 0.15), trainable = trainable)
-        x = tf.nn.conv2d(x, filter = conv2_W, strides = [1, 1, 1, 1], padding ='SAME')
+        conv2_W = tf.Variable(tf.random_normal([1, 1, 32, 32], stddev=0.15), 
+                              trainable=trainable)
+        x = tf.nn.conv2d(x, filter=conv2_W, strides=[1, 1, 1, 1], 
+                         padding='SAME')
         x = tf.layers.batch_normalization(x)
-        x=tf.add(x, shortcut)
+        x = tf.add(x, shortcut)
         x = tf.nn.relu(x)
 
     return x
@@ -33,21 +36,26 @@ def build_feature_extractor(inputs, scope, trainable):
         L = int(inputs.shape[2])
         N = int(inputs.shape[3])
 
-        conv1_W = tf.Variable(tf.truncated_normal([1, L, N, 32], stddev = 0.15), trainable = trainable)
-        layer = tf.nn.conv2d(inputs, filter = conv1_W, padding = 'VALID', strides = [1, 1, 1, 1])
+        conv1_W = tf.Variable(tf.truncated_normal([1, L, N, 32], stddev=0.15), 
+                              trainable=trainable)
+        layer = tf.nn.conv2d(inputs, filter=conv1_W, padding='VALID', 
+                             strides=[1, 1, 1, 1])
         norm1 = tf.layers.batch_normalization(layer)
         x = tf.nn.relu(norm1)
         for i in range(5):
             x = res_block(x, trainable, "res_block_{}".format(i))
             
-        conv3_W = tf.Variable(tf.random_normal([1, 1, 32, 1], stddev = 0.15), trainable = trainable)
-        conv3 = tf.nn.conv2d(x, filter = conv3_W, padding = 'VALID', strides = [1, 1, 1, 1])
+        conv3_W = tf.Variable(tf.random_normal([1, 1, 32, 1], stddev=0.15), 
+                              trainable=trainable)
+        conv3 = tf.nn.conv2d(x, filter=conv3_W, padding='VALID', 
+                             strides=[1, 1, 1, 1])
         norm3 = tf.layers.batch_normalization(conv3)
         net = tf.nn.relu(norm3)
 
         net = tf.layers.flatten(net)
 
         return net
+
 
 def variables_summaries(var, name):
     mean = tf.reduce_mean(var)
@@ -62,47 +70,54 @@ def variables_summaries(var, name):
 
 class StockActor:
     def __init__(self, sess,  M, L, N):
-
-        #Initial hyperparaters
+        # Initial hyperparaters
         self.tau = 10e-3
         self.learning_rate = 1e-2
         self.gamma = 0.99
 
-        #Initial session
+        # Initial session
         self.sess = sess
 
-        #Initial input shape
+        # Initial input shape
         self.M = M
         self.L = L
         self.N = N
 
         self.init_input()
         self.scopes = ['online/actor', 'target/actor']
-        self.inputs, self.out, self.previous_action = self.build_actor(self.scopes[0], True)
-        self.target_inputs, self.target_out, self.target_previous_action = self.build_actor(self.scopes[1], False)
+        self.inputs, self.out, self.previous_action = \
+            self.build_actor(self.scopes[0], True)
+        self.target_inputs, self.target_out, self.target_previous_action = \
+            self.build_actor(self.scopes[1], False)
 
         self.init_op()
 
         self.action_gradient = tf.placeholder(tf.float32, [None] + [self.M])
-        self.unnormalized_actor_gradients = tf.gradients(self.out, self.network_params, -self.action_gradient)
-        self.actor_gradients = self.unnormalized_actor_gradients#list(map(lambda x: tf.div(x, self.batch_size), self.unnormalized_actor_gradients))#self.unnormalized_actor_gradients#list(map(lambda x: tf.div(x, 64), self.unnormalized_actor_gradients))
+        self.unnormalized_actor_gradients = tf.gradients(self.out,
+                                                         self.network_params,
+                                                         -self.action_gradient)
+        self.actor_gradients = self.unnormalized_actor_gradients
 
         # Optimization Op
         global_step = tf.Variable(0, trainable=False)
-        #learning_rate = tf.train.exponential_decay(self.learning_rate, global_step,
-                                                   # decay_steps=2000,
-                                                   # decay_rate=0.95, staircase=False)
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(zip(self.actor_gradients, self.network_params), global_step = global_step)
+        learning_rate = tf.train.exponential_decay(self.learning_rate,
+                                                   global_step,
+                                                   decay_steps=2000,
+                                                   decay_rate=0.95,
+                                                   staircase=False)
+        self.optimize = tf.train.AdamOptimizer(learning_rate).apply_gradients(
+            zip(self.actor_gradients, self.network_params),
+            global_step=global_step)
 
         self.precise_action = tf.placeholder(tf.float32, [None]+[self.M])
-        self.pre_loss = tf.reduce_sum(tf.square((self.precise_action-self.out)))
+        self.pre_loss = tf.reduce_sum(tf.square(
+            (self.precise_action - self.out)))
 
-        #pre_train_learning_rate = tf.train.exponential_decay(10e-4, global_step,decay_steps=2000,decay_rate=0.95, staircase=False)
-        self.pre_optimize = tf.train.AdamOptimizer(10e-3).minimize(self.pre_loss,global_step = global_step)
+        self.pre_optimize = tf.train.AdamOptimizer(10e-3).minimize(self.pre_loss, global_step=global_step)
         self.num_trainable_vars = len(self.network_params) + len(self.traget_network_params)
 
     def init_input(self):
-        self.r=tf.placeholder(tf.float32,[None] + [1])
+        self.r = tf.placeholder(tf.float32, [None] + [1])
 
     def init_op(self):
         #update op
@@ -115,7 +130,7 @@ class StockActor:
 
     def build_actor(self, scope, trainable):
         with tf.name_scope(scope):
-            inputs = tf.placeholder(tf.float32,shape = [None] + [self.M] + [self.L] + [self.N], name = 'input')
+            inputs = tf.placeholder(tf.float32, shape = [None] + [self.M] + [self.L] + [self.N], name = 'input')
             x = build_feature_extractor(inputs, scope, trainable = trainable)
             actions_previous = tf.placeholder(tf.float32, shape = [None] + [self.M])
 

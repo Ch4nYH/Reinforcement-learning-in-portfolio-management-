@@ -1,3 +1,7 @@
 {
-    "python.pythonPath": "/Users/chanyh/anaconda3/envs/tf1/bin/python"
+    "python.pythonPath": "/Users/chanyh/anaconda3/envs/tf1/bin/python",
+    "python.linting.flake8Enabled": true,
+    "python.linting.enabled": true,
+    "python.linting.banditEnabled": false,
+    "python.linting.pylintEnabled": false
 }
