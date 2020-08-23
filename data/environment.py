@@ -14,7 +14,7 @@ class Environment:
         self.seed = seed
 
     def get_repo(self, start_date, end_date, codes_num, market):
-        self.data = pd.read_csv('./data/china.csv', index_col=0, parse_dates=True, dtype=object)
+        self.data = pd.read_csv('./data/China.csv', index_col=0, parse_dates=True, dtype=object)
         self.data["code"] = self.data["code"].astype(str)
         
         sample_flag = True
@@ -42,7 +42,7 @@ class Environment:
 
     def get_data(self, start_time, end_time, features, window_length, market, codes):
         self.codes = codes
-        self.data = pd.read_csv(r'./data/china.csv', index_col=0, parse_dates=True, dtype=object)
+        self.data = pd.read_csv(r'./data/China.csv', index_col=0, parse_dates=True, dtype=object)
         self.data["code"] = self.data["code"].astype(str)
         self.data[features] = self.data[features].astype(float)
         self.data = self.data[start_time.strftime("%Y-%m-%d"):end_time.strftime("%Y-%m-%d")]
