@@ -13,7 +13,7 @@ from data.environment import Environment
 def session(config, args):
     codes, start_date, end_date, features, agent_config, \
         market, predictor, framework, window_length, noise_flag, record_flag, \
-        plot_flag, reload_flag, trainable, method = parse_config(config, args)
+        plot_flag, reload_flag, trainable, method, epochs = parse_config(config, args)
     env = Environment(args.seed)
 
     stocktrader = StockTrader()
@@ -44,8 +44,8 @@ def session(config, args):
             print("*-----------------Loading DDPG Agent---------------------*")
             agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable, args.num)
 
-        print("Training with {:d}".format(args.epochs))
-        for epoch in range(args.epochs):
+        print("Training with {:d}".format(epochs))
+        for epoch in range(epochs):
             print("Now we are at epoch", epoch)
             traversal(stocktrader, agent, env, epoch, True, framework, method, trainable)
 

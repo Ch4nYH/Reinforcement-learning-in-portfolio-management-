@@ -132,4 +132,4 @@ def parse_config(config, mode):
     print("Plot_flag", plot_flag)
 
     return num_codes, start_date, end_date, features, agent_config, market, predictor, framework, window_length, \
-        noise_flag, record_flag, plot_flag, reload_flag, trainable, method
+        noise_flag, record_flag, plot_flag, reload_flag, trainable, method, epochs

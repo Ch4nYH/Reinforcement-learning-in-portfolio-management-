@@ -13,7 +13,7 @@ class PG:
         # Initial buffer
         self.buffer = list()
         self.name = name
-        self.learning_rate = 1e-1
+        self.learning_rate = 2e-2
         self.number = number
         # Build up models
         self.session = tf.Session()
