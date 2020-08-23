@@ -11,120 +11,119 @@ import random
 
 tf_summaries_list=[]
 
-def res_block(x,trainable):
+def res_block(x, trainable, scope):
+    with tf.name_scope(scope):
+        shortcut=x
+        conv1_W = tf.Variable(tf.random_normal([1, 1, 32, 32], stddev = 0.15), trainable = trainable)
+        x = tf.nn.conv2d(x, filter = conv1_W, strides = [1, 1, 1, 1], padding = 'SAME')
+        x = tf.layers.batch_normalization(x)
+        x = tf.nn.relu(x)
 
-    x_shortcut=x
-
-    conv1_W = tf.Variable(tf.random_normal([1, 1, 32, 32], stddev=0.15), trainable=trainable)
-    x = tf.nn.conv2d(x, filter=conv1_W, strides=[1, 1, 1, 1], padding='SAME')
-    x = tf.layers.batch_normalization(x)
-    x = tf.nn.relu(x)
-
-    conv2_W = tf.Variable(tf.random_normal([1, 1, 32, 32], stddev=0.15), trainable=trainable)
-    x = tf.nn.conv2d(x, filter=conv2_W, strides=[1, 1, 1, 1], padding='SAME')
-    x = tf.layers.batch_normalization(x)
-    x=tf.add(x,x_shortcut)
-    x = tf.nn.relu(x)
+        conv2_W = tf.Variable(tf.random_normal([1, 1, 32, 32], stddev = 0.15), trainable = trainable)
+        x = tf.nn.conv2d(x, filter = conv2_W, strides = [1, 1, 1, 1], padding ='SAME')
+        x = tf.layers.batch_normalization(x)
+        x=tf.add(x, shortcut)
+        x = tf.nn.relu(x)
 
     return x
 
 
-def build_predictor(inputs, predictor, nes_num,scope,trainable):
+def build_feature_extractor(inputs, scope, trainable):
     with tf.name_scope(scope):
-        if predictor == 'CNN':
+        L = int(inputs.shape[2])
+        N = int(inputs.shape[3])
 
-            L=int(inputs.shape[2])
-            N = int(inputs.shape[3])
+        conv1_W = tf.Variable(tf.truncated_normal([1, L, N, 32], stddev = 0.15), trainable = trainable)
+        layer = tf.nn.conv2d(inputs, filter = conv1_W, padding = 'VALID', strides = [1, 1, 1, 1])
+        norm1 = tf.layers.batch_normalization(layer)
+        x = tf.nn.relu(norm1)
+        for i in range(5):
+            x = res_block(x, trainable, "res_block_{}".format(i))
+            
+        conv3_W = tf.Variable(tf.random_normal([1, 1, 32, 1], stddev = 0.15), trainable = trainable)
+        conv3 = tf.nn.conv2d(x, filter = conv3_W, padding = 'VALID', strides = [1, 1, 1, 1])
+        norm3 = tf.layers.batch_normalization(conv3)
+        net = tf.nn.relu(norm3)
 
-            conv1_W = tf.Variable(tf.truncated_normal([1,L,N,32], stddev=0.15), trainable=trainable)
-            layer = tf.nn.conv2d(inputs, filter=conv1_W, padding='VALID', strides=[1, 1, 1, 1])
-            norm1 = tf.layers.batch_normalization(layer)
-            x = tf.nn.relu(norm1)
+        net = tf.layers.flatten(net)
 
-            conv3_W = tf.Variable(tf.random_normal([1, 1, 32, 1], stddev=0.15), trainable=trainable)
-            conv3 = tf.nn.conv2d(x, filter=conv3_W, strides=[1, 1, 1, 1], padding='VALID')
-            norm3 = tf.layers.batch_normalization(conv3)
-            net = tf.nn.relu(norm3)
+        return net
 
-            net=tf.layers.flatten(net)
+def variables_summaries(var, name):
+    mean = tf.reduce_mean(var)
 
-            return net
+    tf.summary.scalar(name + '_mean', mean)
 
-def variables_summaries(var,name):
-    mean=tf.reduce_mean(var)
+    std = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar(name + '_stddev', std)
 
-    tf.summary.scalar(name+'_mean',mean)
-
-    std=tf.sqrt(tf.reduce_mean(tf.square(var-mean)))
-    tf.summary.scalar(name+'_stddev',std)
-
-    tf.summary.histogram(name+'_histogram',var)
+    tf.summary.histogram(name + '_histogram', var)
 
 
 class StockActor:
-    def __init__(self,sess,predictor,M,L,N):
+    def __init__(self, sess,  M, L, N):
 
         #Initial hyperparaters
-        self.tau=10e-3
-        self.learning_rate=10e-2
-        self.gamma=0.99
+        self.tau = 10e-3
+        self.learning_rate = 1e-2
+        self.gamma = 0.99
 
         #Initial session
-        self.sess=sess
+        self.sess = sess
 
         #Initial input shape
-        self.M=M
-        self.L=L
-        self.N=N
+        self.M = M
+        self.L = L
+        self.N = N
 
         self.init_input()
-        self.scopes=['online/actor','target/actor']
-        self.inputs,self.out,self.previous_action=self.build_actor(predictor,self.scopes[0],True)
-        self.target_inputs, self.target_out,self.target_previous_action=self.build_actor(predictor,self.scopes[1],False)
+        self.scopes = ['online/actor', 'target/actor']
+        self.inputs, self.out, self.previous_action = self.build_actor(self.scopes[0], True)
+        self.target_inputs, self.target_out, self.target_previous_action = self.build_actor(self.scopes[1], False)
 
         self.init_op()
 
-        self.action_gradient=tf.placeholder(tf.float32,[None]+[self.M])
-        self.unnormalized_actor_gradients=tf.gradients(self.out,self.network_params,-self.action_gradient)
-        self.actor_gradients =self.unnormalized_actor_gradients#list(map(lambda x: tf.div(x, self.batch_size), self.unnormalized_actor_gradients))#self.unnormalized_actor_gradients#list(map(lambda x: tf.div(x, 64), self.unnormalized_actor_gradients))
+        self.action_gradient = tf.placeholder(tf.float32, [None] + [self.M])
+        self.unnormalized_actor_gradients = tf.gradients(self.out, self.network_params, -self.action_gradient)
+        self.actor_gradients = self.unnormalized_actor_gradients#list(map(lambda x: tf.div(x, self.batch_size), self.unnormalized_actor_gradients))#self.unnormalized_actor_gradients#list(map(lambda x: tf.div(x, 64), self.unnormalized_actor_gradients))
 
         # Optimization Op
         global_step = tf.Variable(0, trainable=False)
         #learning_rate = tf.train.exponential_decay(self.learning_rate, global_step,
                                                    # decay_steps=2000,
                                                    # decay_rate=0.95, staircase=False)
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(zip(self.actor_gradients, self.network_params),global_step=global_step)
+        self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(zip(self.actor_gradients, self.network_params), global_step = global_step)
 
         self.precise_action = tf.placeholder(tf.float32, [None]+[self.M])
-        self.pre_loss=tf.reduce_sum(tf.square((self.precise_action-self.out)))
+        self.pre_loss = tf.reduce_sum(tf.square((self.precise_action-self.out)))
 
         #pre_train_learning_rate = tf.train.exponential_decay(10e-4, global_step,decay_steps=2000,decay_rate=0.95, staircase=False)
-        self.pre_optimize=tf.train.AdamOptimizer(10e-3).minimize(self.pre_loss,global_step=global_step)
+        self.pre_optimize = tf.train.AdamOptimizer(10e-3).minimize(self.pre_loss,global_step = global_step)
         self.num_trainable_vars = len(self.network_params) + len(self.traget_network_params)
 
     def init_input(self):
-        self.r=tf.placeholder(tf.float32,[None]+[1])
+        self.r=tf.placeholder(tf.float32,[None] + [1])
 
     def init_op(self):
         #update op
-        params=[tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,scope) for scope in self.scopes]
-        self.network_params=params[0]
-        self.traget_network_params=params[1]
-        params=zip(params[0],params[1])
-        self.update=[tf.assign(t_a,(1-self.tau)*t_a+self.tau*p_a) for p_a,t_a in params]
+        params = [tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope) for scope in self.scopes]
+        self.network_params = params[0]
+        self.traget_network_params = params[1]
+        params = zip(params[0], params[1])
+        self.update = [tf.assign(t_a, (1-self.tau) * t_a + self.tau * p_a) for p_a, t_a in params]
 
 
-    def build_actor(self,predictor,scope,trainable):
+    def build_actor(self, scope, trainable):
         with tf.name_scope(scope):
-            inputs=tf.placeholder(tf.float32,shape=[None]+[self.M]+[self.L]+[self.N],name='input')
-            x=build_predictor(inputs,predictor,1,scope,trainable=trainable)
-            actions_previous=tf.placeholder(tf.float32,shape=[None]+[self.M])
+            inputs = tf.placeholder(tf.float32,shape = [None] + [self.M] + [self.L] + [self.N], name = 'input')
+            x = build_feature_extractor(inputs, scope, trainable = trainable)
+            actions_previous = tf.placeholder(tf.float32, shape = [None] + [self.M])
 
-            net = tf.add(x,actions_previous)
-            w_init=tf.random_uniform_initializer(-0.003,0.003)
-            out=tf.layers.dense(net,self.M,activation=tf.nn.softmax,kernel_initializer=w_init)
+            net = tf.add(x, actions_previous)
+            w_init = tf.random_uniform_initializer(-0.003, 0.003)
+            out = tf.layers.dense(net, self.M, activation = tf.nn.softmax, kernel_initializer = w_init)
 
-            return inputs,out,actions_previous
+            return inputs, out, actions_previous
 
     def train(self,inputs,a_gradient,a_previous):
         self.sess.run(self.optimize,feed_dict={self.inputs:inputs,self.action_gradient:a_gradient,self.previous_action:a_previous})
@@ -144,7 +143,7 @@ class StockActor:
         self.sess.run(self.update)
 
 class StockCritic:
-    def __init__(self,sess,predictor,M,L,N):
+    def __init__(self,sess,M,L,N):
         #Initial hyperparaters
         self.tau=10e-3
         self.learning_rate=10e-4
@@ -159,8 +158,8 @@ class StockCritic:
         self.N=N
 
         self.scopes=['online/critic','target/critic']
-        self.target_inputs, self.target_actions, self.target_out,self.target_previous_action = self.build_critic(predictor,self.scopes[1],False)
-        self.inputs,self.actions,self.out,self.previous_action=self.build_critic(predictor,self.scopes[0],True)
+        self.target_inputs, self.target_actions, self.target_out,self.target_previous_action = self.build_critic(self.scopes[1],False)
+        self.inputs,self.actions,self.out,self.previous_action=self.build_critic(self.scopes[0],True)
 
 
 
@@ -190,19 +189,19 @@ class StockCritic:
 
 
 
-    def build_critic(self,predictor,scope,trainable):
+    def build_critic(self,scope,trainable):
         with tf.name_scope(scope):
-            states=tf.placeholder(tf.float32,shape=[None]+[self.M,self.L,self.N])
-            actions=tf.placeholder(tf.float32,shape=[None]+[self.M])
-            actions_previous=tf.placeholder(tf.float32,shape=[None]+[self.M])
-            net = build_predictor(states, predictor,5,scope,trainable)
+            states = tf.placeholder(tf.float32, shape=[None] + [self.M,self.L,self.N])
+            actions = tf.placeholder(tf.float32, shape=[None] + [self.M])
+            actions_previous = tf.placeholder(tf.float32, shape=[None] + [self.M])
+            net = build_feature_extractor(states, scope, trainable)
 
             net = tf.add(net, actions)
-            net = tf.add(net,actions_previous)
+            net = tf.add(net, actions_previous)
 
-            out = tf.layers.dense(net, 1, kernel_initializer=tf.random_uniform_initializer(-0.003, 0.003))
+            out = tf.layers.dense(net, 1, kernel_initializer = tf.random_uniform_initializer(-0.003, 0.003))
 
-        return states,actions,out,actions_previous
+        return states, actions, out, actions_previous
 
     def train(self,inputs,actions,predicted_q_value,a_previous):
         critic_loss,q_value,_=self.sess.run([self.loss,self.out,self.optimize],feed_dict={self.inputs:inputs,self.actions:actions,self.predicted_q_value:predicted_q_value,self.previous_action:a_previous})
@@ -221,32 +220,33 @@ class StockCritic:
         return self.sess.run(self.action_grads,feed_dict={self.inputs:inputs,self.actions:actions,self.previous_action:a_previous})
 
 def  build_summaries():
-    critic_loss=tf.Variable(0.)
+    #critic_loss=tf.Variable(0.)
     reward=tf.Variable(0.)
-    ep_ave_max_q=tf.Variable(0.)
-    actor_loss=tf.Variable(0.)
-    tf.summary.scalar('Critic_loss',critic_loss)
+    #ep_ave_max_q=tf.Variable(0.)
+    #actor_loss=tf.Variable(0.)
+    #tf.summary.scalar('Critic_loss',critic_loss)
     tf.summary.scalar('Reward',reward)
-    tf.summary.scalar('Ep_ave_max_q',ep_ave_max_q)
-    tf.summary.scalar('Actor_loss',actor_loss)
+    #tf.summary.scalar('Ep_ave_max_q',ep_ave_max_q)
+    #tf.summary.scalar('Actor_loss',actor_loss)
 
 
-    summary_vars=[critic_loss,reward,ep_ave_max_q,actor_loss]
+    summary_vars=[reward]
     summary_ops=tf.summary.merge_all()
     return summary_ops,summary_vars
 
 
 
 class DDPG:
-    def __init__(self,predictor,M,L,N,name,load_weights,trainable):
+    def __init__(self,M,L,N,name,load_weights,trainable):
         # Initial buffer
         self.buffer = list()
         self.name=name
 
         #Build up models
-        self.sesson = tf.Session()
-        self.actor=StockActor(self.sesson,predictor,M,L,N)
-        self.critic=StockCritic(self.sesson,predictor,M,L,N)
+        self.session = tf.Session()
+        self.actor=StockActor(self.session,M,L,N)
+        self.critic=StockCritic(self.session,M,L,N)
+        self.global_step = tf.Variable(0, trainable=False)
 
 
 
@@ -259,22 +259,22 @@ class DDPG:
         if load_weights=='True':
             print("Loading Model")
             try:
-                checkpoint = tf.train.get_checkpoint_state('./saved_network/DDPG')
+                checkpoint = tf.train.get_checkpoint_state('./result/DDPG')
                 if checkpoint and checkpoint.model_checkpoint_path:
-                    self.saver.restore(self.sesson, checkpoint.model_checkpoint_path)
+                    self.saver.restore(self.session, checkpoint.model_checkpoint_path)
                     print("Successfully loaded:", checkpoint.model_checkpoint_path)
                 else:
                     print("Could not find old network weights")
-                    self.sesson.run(tf.global_variables_initializer())
+                    self.session.run(tf.global_variables_initializer())
             except:
                 print("Could not find old network weights")
-                self.sesson.run(tf.global_variables_initializer())
+                self.session.run(tf.global_variables_initializer())
         else:
-            self.sesson.run(tf.global_variables_initializer())
+            self.session.run(tf.global_variables_initializer())
 
         if trainable=='True':
             # Initial summary
-            self.summary_writer = tf.summary.FileWriter('./summary/DDPG', self.sesson.graph)
+            self.summary_writer = tf.summary.FileWriter('./summary/DDPG', self.session.graph)
             self.summary_ops, self.summary_vars = build_summaries()
 
     #online actor
@@ -296,19 +296,19 @@ class DDPG:
 
         y_i=[]
         for i in range(len(s_next)):
-                y_i.append(r[i]+not_terminal[i]*self.gamma*target_q[i])
+                y_i.append(r[i] + not_terminal[i] * self.gamma * target_q[i])
 
-        critic_loss,q_value=self.critic.train(s,a,np.reshape(y_i,(-1,1)),a_previous)
-        info["critic_loss"]=critic_loss
-        info["q_value"]=np.amax(q_value)
+        critic_loss,q_value = self.critic.train(s, a, np.reshape(y_i, (-1, 1)), a_previous)
+        info["critic_loss"] = critic_loss
+        info["q_value"] = np.amax(q_value)
 
-        if method=='model_free':
-            a_outs=self.actor.predict(s,a_previous)
-            grads=self.critic.action_gradients(s,a_outs,a_previous)
+        if method == 'model_free':
+            a_outs = self.actor.predict(s,a_previous)
+            grads = self.critic.action_gradients(s,a_outs,a_previous)
             self.actor.train(s,grads[0],a_previous)
-        elif method=='model_based':
-            if epoch<=100:
-                actor_loss=self.actor.pre_train(s, a_previous)
+        elif method == 'model_based':
+            if epoch <= 100:
+                actor_loss = self.actor.pre_train(s, a_previous)
                 info["actor_loss"]=actor_loss
             else:
                 a_outs = self.actor.predict(s,a_previous)
@@ -332,17 +332,26 @@ class DDPG:
         return s, a, r, not_terminal, s_next,action_previous
 
 
-    def save_model(self,epoch):
-        self.saver.save(self.sesson,'./saved_network/DDPG/'+self.name,global_step=epoch)
+    def save_model(self):
+        self.saver.save(self.session,'./result/DDPG/'+self.name,global_step=self.global_step)
 
+    '''
     def write_summary(self,Loss,reward,ep_ave_max_q,actor_loss,epoch):
-        summary_str = self.sesson.run(self.summary_ops, feed_dict={
+        summary_str = self.session.run(self.summary_ops, feed_dict={
             self.summary_vars[0]: Loss,
             self.summary_vars[1]: reward,
             self.summary_vars[2]: ep_ave_max_q,
             self.summary_vars[3]: actor_loss
         })
         self.summary_writer.add_summary(summary_str, epoch)
-
+    '''
+    def write_summary(self,reward):
+        summary_str = self.session.run(self.summary_ops, feed_dict={
+            self.summary_vars[0]: reward,
+        })
+        self.summary_writer.add_summary(summary_str, self.session.run(self.global_step))
     def reset_buffer(self):
         self.buffer=list()
+    
+    def close(self):
+        self.session.close()
