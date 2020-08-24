@@ -142,9 +142,11 @@ class StockActor:
     def train(self, inputs, a_gradient, a_previous):
         self.sess.run(self.optimize, feed_dict={self.inputs: inputs, self.action_gradient: a_gradient, self.previous_action: a_previous})
 
-    def pre_train(self, s, a):
+    def pre_train(self, s, a, a_previous):
         pre_loss, _, _ = self.sess.run([self.pre_loss, self.out, self.pre_optimize],
-                                       feed_dict={self.inputs: s, self.precise_action: a})
+                                       feed_dict={self.inputs: s,
+                                                  self.precise_action: a,
+                                                  self.previous_action: a_previous})
         return pre_loss
 
     def predict(self, inputs, a_previous):

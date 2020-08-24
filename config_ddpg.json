@@ -11,6 +11,6 @@
 	"plot_flag":0,
 	"reload_flag":0,
 	"trainable":1,
-	"method":"model_based",
+	"method":"model_free",
 	"seed": 1
 }
