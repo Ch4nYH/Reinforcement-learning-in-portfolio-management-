@@ -72,7 +72,7 @@ class StockActor:
     def __init__(self, sess,  M, L, N):
         # Initial hyperparaters
         self.tau = 10e-3
-        self.learning_rate = 1e-2
+        self.learning_rate = 4e-2
         self.gamma = 0.99
 
         # Initial session
@@ -134,7 +134,7 @@ class StockActor:
             actions_previous = tf.placeholder(tf.float32, shape=[None] + [self.M])
 
             net = tf.add(x, actions_previous)
-            w_init = tf.random_uniform_initializer(-0.003, 0.003)
+            w_init = tf.random_uniform_initializer(-0.05, 0.05)
             out = tf.layers.dense(net, self.M, activation=tf.nn.softmax, kernel_initializer=w_init)
 
             return inputs, out, actions_previous
@@ -167,7 +167,7 @@ class StockCritic:
     def __init__(self, sess, M, L, N):
         # Initial hyperparaters
         self.tau = 10e-3
-        self.learning_rate = 10e-4
+        self.learning_rate = 2e-2
         self.gamma = 0.99
 
         # Initial session
@@ -214,7 +214,7 @@ class StockCritic:
             net = tf.add(net, actions)
             net = tf.add(net, actions_previous)
 
-            out = tf.layers.dense(net, 1, kernel_initializer=tf.random_uniform_initializer(-0.003, 0.003))
+            out = tf.layers.dense(net, 1, kernel_initializer=tf.random_uniform_initializer(-0.05, 0.05))
 
         return states, actions, out, actions_previous
 
