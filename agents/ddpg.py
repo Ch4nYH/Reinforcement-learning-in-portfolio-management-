@@ -100,12 +100,12 @@ class StockActor:
 
         # Optimization Op
         global_step = tf.Variable(0, trainable=False)
-        learning_rate = tf.train.exponential_decay(self.learning_rate,
-                                                   global_step,
-                                                   decay_steps=2000,
-                                                   decay_rate=0.95,
-                                                   staircase=False)
-        self.optimize = tf.train.AdamOptimizer(learning_rate).apply_gradients(
+        # learning_rate = tf.train.exponential_decay(self.learning_rate,
+        #                                           global_step,
+        #                                           decay_steps=2000,
+        #                                           decay_rate=0.95,
+        #                                          staircase=False)
+        self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(
             zip(self.actor_gradients, self.network_params),
             global_step=global_step)
 
