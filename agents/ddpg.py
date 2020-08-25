@@ -166,7 +166,7 @@ class StockActor:
 class StockCritic:
     def __init__(self, sess, M, L, N):
         # Initial hyperparaters
-        self.tau = 10e-3
+        self.tau = 1e-2
         self.learning_rate = 2e-2
         self.gamma = 0.99
 
@@ -229,7 +229,7 @@ class StockCritic:
         return self.sess.run(self.out, feed_dict={self.inputs: inputs,
                                                   self.actions: actions})
 
-    def preditc_target(self, inputs, actions, a_previous):
+    def predict_target(self, inputs, actions, a_previous):
         return self.sess.run(self.target_out, feed_dict={self.target_inputs: inputs,
                                                          self.target_actions: actions,
                                                          self.target_previous_action: a_previous})
@@ -310,7 +310,7 @@ class DDPG:
         info = dict()
 
         s, a, r, not_terminal, s_next, a_previous = self.get_transition_batch()
-        target_q = self.critic.preditc_target(s_next, self.actor.predict_target(s_next, a_previous), a_previous)
+        target_q = self.critic.predict_target(s_next, self.actor.predict_target(s_next, a_previous), a_previous)
 
         y_i = []
         for i in range(len(s_next)):
