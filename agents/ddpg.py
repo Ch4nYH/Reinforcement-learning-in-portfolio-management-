@@ -100,20 +100,10 @@ class StockActor:
 
         # Optimization Op
         global_step = tf.Variable(0, trainable=False)
-        # learning_rate = tf.train.exponential_decay(self.learning_rate,
-        #                                           global_step,
-        #                                           decay_steps=2000,
-        #                                           decay_rate=0.95,
-        #                                          staircase=False)
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(
+        self.optimize = tf.train.AdamOptimizer(self.lewrearning_rate).apply_gradients(
             zip(self.actor_gradients, self.network_params),
             global_step=global_step)
 
-        self.precise_action = tf.placeholder(tf.float32, [None]+[self.M])
-        self.pre_loss = tf.reduce_sum(tf.square(
-            (self.precise_action - self.out)))
-
-        self.pre_optimize = tf.train.AdamOptimizer(10e-3).minimize(self.pre_loss, global_step=global_step)
         self.num_trainable_vars = len(self.network_params) + len(self.traget_network_params)
 
     def init_input(self):
@@ -134,20 +124,13 @@ class StockActor:
             actions_previous = tf.placeholder(tf.float32, shape=[None] + [self.M])
 
             net = tf.add(x, actions_previous)
-            w_init = tf.random_uniform_initializer(-0.05, 0.05)
+            w_init = tf.random_uniform_initializer(-0.5, 0.5)
             out = tf.layers.dense(net, self.M, activation=tf.nn.softmax, kernel_initializer=w_init)
 
             return inputs, out, actions_previous
 
     def train(self, inputs, a_gradient, a_previous):
         self.sess.run(self.optimize, feed_dict={self.inputs: inputs, self.action_gradient: a_gradient, self.previous_action: a_previous})
-
-    def pre_train(self, s, a, a_previous):
-        pre_loss, _, _ = self.sess.run([self.pre_loss, self.out, self.pre_optimize],
-                                       feed_dict={self.inputs: s,
-                                                  self.precise_action: a,
-                                                  self.previous_action: a_previous})
-        return pre_loss
 
     def predict(self, inputs, a_previous):
         return self.sess.run(self.out, feed_dict={self.inputs: inputs,
@@ -214,7 +197,7 @@ class StockCritic:
             net = tf.add(net, actions)
             net = tf.add(net, actions_previous)
 
-            out = tf.layers.dense(net, 1, kernel_initializer=tf.random_uniform_initializer(-0.05, 0.05))
+            out = tf.layers.dense(net, 1, kernel_initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
         return states, actions, out, actions_previous
 
@@ -292,7 +275,7 @@ class DDPG:
 
         if trainable:
             # Initial summary
-            self.summary_writer = tf.summary.FileWriter('./result/PG/{}/{}/'.format(self.name, self.number), self.session.graph)
+            self.summary_writer = tf.summary.FileWriter('./result/DDPG/{}/{}/'.format(self.name, self.number), self.session.graph)
             self.summary_ops, self.summary_vars = build_summaries()
 
     # online actor
@@ -320,18 +303,9 @@ class DDPG:
         info["critic_loss"] = critic_loss
         info["q_value"] = np.amax(q_value)
 
-        if method == 'model_free':
-            a_outs = self.actor.predict(s, a_previous)
-            grads = self.critic.action_gradients(s, a_outs, a_previous)
-            self.actor.train(s, grads[0], a_previous)
-        elif method == 'model_based':
-            if epoch <= 100:
-                actor_loss = self.actor.pre_train(s, a_previous)
-                info["actor_loss"] = actor_loss
-            else:
-                a_outs = self.actor.predict(s, a_previous)
-                grads = self.critic.action_gradients(s, a_outs, a_previous)
-                self.actor.train(s, grads[0], a_previous)
+        a_outs = self.actor.predict(s, a_previous)
+        grads = self.critic.action_gradients(s, a_outs, a_previous)
+        self.actor.train(s, grads[0], a_previous)
 
         self.actor.update_target_network()
         self.critic.update_target_network()
@@ -348,7 +322,7 @@ class DDPG:
         return s, a, r, not_terminal, s_next, action_previous
 
     def save_model(self):
-        self.saver.save(self.session, './result/PG/{}/{}/saved_network/'.format(self.name, self.number), global_step=self.global_step)
+        self.saver.save(self.session, './result/DDPG/{}/{}/saved_network/'.format(self.name, self.number), global_step=self.global_step)
 
     '''
     def write_summary(self,Loss,reward,ep_ave_max_q,actor_loss,epoch):
