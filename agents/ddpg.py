@@ -6,6 +6,7 @@ Created on Mon Aug  6 08:59:35 2018
 """
 import tensorflow as tf
 import numpy as np
+import copy
 
 tf_summaries_list = []
 
@@ -100,11 +101,11 @@ class StockActor:
 
         # Optimization Op
         global_step = tf.Variable(0, trainable=False)
-        self.optimize = tf.train.AdamOptimizer(self.lewrearning_rate).apply_gradients(
+        self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(
             zip(self.actor_gradients, self.network_params),
             global_step=global_step)
 
-        self.num_trainable_vars = len(self.network_params) + len(self.traget_network_params)
+        self.num_trainable_vars = len(self.network_params) + len(self.target_network_params)
 
     def init_input(self):
         self.r = tf.placeholder(tf.float32, [None] + [1])
@@ -113,7 +114,7 @@ class StockActor:
         # update op
         params = [tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope) for scope in self.scopes]
         self.network_params = params[0]
-        self.traget_network_params = params[1]
+        self.target_network_params = params[1]
         params = zip(params[0], params[1])
         self.update = [tf.assign(t_a, (1-self.tau) * t_a + self.tau * p_a) for p_a, t_a in params]
 
@@ -183,7 +184,7 @@ class StockCritic:
         # update op
         params = [tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope) for scope in self.scopes]
         self.network_params = params[0]
-        self.traget_network_params = params[1]
+        self.target_network_params = params[1]
         params = zip(params[0], params[1])
         self.update = [tf.assign(t_a, (1-self.tau)*t_a+self.tau*p_a) for p_a, t_a in params]
 
@@ -312,7 +313,9 @@ class DDPG:
         return info
 
     def get_transition_batch(self):
-        minibatch = self.buffer
+        minibatch = copy.deepcopy(self.buffer)
+        import random
+        random.shuffle(minibatch)
         s = [data[0][0] for data in minibatch]
         a = [data[1] for data in minibatch]
         r = [data[2] for data in minibatch]
@@ -324,16 +327,6 @@ class DDPG:
     def save_model(self):
         self.saver.save(self.session, './result/DDPG/{}/{}/saved_network/'.format(self.name, self.number), global_step=self.global_step)
 
-    '''
-    def write_summary(self,Loss,reward,ep_ave_max_q,actor_loss,epoch):
-        summary_str = self.session.run(self.summary_ops, feed_dict={
-            self.summary_vars[0]: Loss,
-            self.summary_vars[1]: reward,
-            self.summary_vars[2]: ep_ave_max_q,
-            self.summary_vars[3]: actor_loss
-        })
-        self.summary_writer.add_summary(summary_str, epoch)
-    '''
     def write_summary(self, reward):
         summary_str = self.session.run(self.summary_ops, feed_dict={
             self.summary_vars[0]: reward,
