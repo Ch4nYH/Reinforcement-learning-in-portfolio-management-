@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from agents.UCRP import UCRP
 from agents.Loser import Loser
 from agents.Winner import Winner
+import logging
+logger = logging.getLogger("default_handlers")
 
 
 def parse_info(info):
@@ -50,7 +52,7 @@ def traversal(stocktrader, agent, env, epoch, noise_flag, framework, method, tra
 
 
 def backtest(agent, env, path, framework):
-    print("starting to backtest......")
+    logger.debug("Backtest")
 
     agents = []
     agents.extend(agent)
@@ -71,7 +73,6 @@ def backtest(agent, env, path, framework):
         rs = [1]
         while done:
             w2 = agent.predict(s, w1)
-            print(w2)
             env_info = env.step(w1, w2, False)
             r, done, s_next, w1, p, risk = parse_info(env_info)
             wealth = wealth * math.exp(r)
@@ -81,18 +82,18 @@ def backtest(agent, env, path, framework):
             stocktrader.update_summary(0, r, 0, 0, w2, p)
 
         stocktrader.write(map(lambda x: str(x), env.get_codes()), labels[i])
-        print('finish one agent')
+        logger.debug('Finished agents {}'.format(i))
         wealths_result.append(wealths)
         rs_result.append(rs)
 
-    print('资产名称', '   ', '平均日收益率', '   ', '夏普率', '   ', '最大回撤')
+    logger.info('资产名称', '   ', '平均日收益率', '   ', '夏普率', '   ', '最大回撤')
     plt.figure(figsize=(8, 6), dpi=100)
     for i in range(len(agents)):
         plt.plot(wealths_result[i], label=labels[i])
         mrr = float(np.mean(rs_result[i])*100)
         sharpe = float(np.mean(rs_result[i])/np.std(rs_result[i])*np.sqrt(252))
         maxdrawdown = float(max(1 - min(wealths_result[i]) / np.maximum.accumulate(wealths_result[i])))
-        print(labels[i], '   ', round(mrr, 3), '%', '   ', round(sharpe, 3), '  ', round(maxdrawdown, 3))
+        logger.info(labels[i], '   ', round(mrr, 3), '%', '   ', round(sharpe, 3), '  ', round(maxdrawdown, 3))
     plt.legend()
     plt.savefig(path + 'backtest.png')
     plt.show()
@@ -118,18 +119,18 @@ def parse_config(config, mode):
         trainable = False
         method = 'model_free'
 
-    print("*--------------------Status-------------------*")
-    print("Date from", start_date, ' to ', end_date)
-    print('Features:', features)
-    print("Agent:Noise(", noise_flag, ')---Recoed(', noise_flag, ')---Plot(', plot_flag, ')')
-    print("Predictor:", predictor, "  Framework:", framework, "  Window_length:", window_length)
-    print("Epochs:", epochs)
-    print("Trainable:", trainable)
-    print("Reloaded Model:", reload_flag)
-    print("Method", method)
-    print("Noise_flag", noise_flag)
-    print("Record_flag", record_flag)
-    print("Plot_flag", plot_flag)
+    logger.info("Status: ")
+    logger.info("Date from", start_date, ' to ', end_date)
+    logger.info('Features:', features)
+    logger.info("Agent:Noise(", noise_flag, ')---Recoed(', noise_flag, ')---Plot(', plot_flag, ')')
+    logger.info("Predictor:", predictor, "  Framework:", framework, "  Window_length:", window_length)
+    logger.info("Epochs:", epochs)
+    logger.info("Trainable:", trainable)
+    logger.info("Reloaded Model:", reload_flag)
+    logger.info("Method", method)
+    logger.info("Noise_flag", noise_flag)
+    logger.info("Record_flag", record_flag)
+    logger.info("Plot_flag", plot_flag)
 
     return num_codes, start_date, end_date, features, agent_config, market, predictor, framework, window_length, \
         noise_flag, record_flag, plot_flag, reload_flag, trainable, method, epochs

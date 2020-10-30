@@ -4,6 +4,9 @@ from arguments import parser_args
 from session import session
 import random
 import tensorflow as tf
+from logging.config import dictConfig
+import logging_config
+dictConfig(logging_config.logging_config)
 
 
 def main():

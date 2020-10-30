@@ -2,12 +2,14 @@ import os
 import json
 from agents.pg import PG
 from agents.ddpg import DDPG
-
 from trader import StockTrader
 from datetime import datetime
 
 from utils import backtest, traversal, parse_config
 from data.environment import Environment
+
+import logging
+logger = logging.getLogger("default_handlers")
 
 
 def session(config, args):
@@ -18,12 +20,13 @@ def session(config, args):
 
     stocktrader = StockTrader()
     path = "result/{}/{}/".format(framework, args.num)
+    logger.info('Mode: {}'.format(args.mode))
 
     if args.mode == 'train':
         if not os.path.exists(path):
             os.makedirs(path)
             train_start_date, train_end_date, test_start_date, test_end_date, codes = env.get_repo(start_date, end_date, codes, market)
-            print(codes)
+            logger.debug("Training with codes: {}".format(codes))
             env.get_data(train_start_date, train_end_date, features, window_length, market, codes)
             with open(path + 'config.json', 'w') as f:
                 json.dump({"train_start_date": train_start_date.strftime('%Y-%m-%d'),
@@ -38,15 +41,15 @@ def session(config, args):
             env.get_data(train_start_date, train_end_date, features, window_length, market, codes)
 
         if framework == 'PG':
-            print("*-----------------Loading PG Agent---------------------*")
+            logger.debug("Loading PG Agent")
             agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable, args.num)
         elif framework == 'DDPG':
-            print("*-----------------Loading DDPG Agent---------------------*")
+            logger.debug("Loading DDPG Agent")
             agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), reload_flag, trainable, args.num)
 
-        print("Training with {:d}".format(epochs))
+        logger.info("Training with {:d}".format(epochs))
         for epoch in range(epochs):
-            print("Now we are at epoch", epoch)
+            logger.info("Epoch: {}".format(epoch))
             traversal(stocktrader, agent, env, epoch, True, framework, method, trainable)
 
             if record_flag:
@@ -61,14 +64,15 @@ def session(config, args):
         agent.close()
 
     elif args.mode == 'test':
+        
         with open("result/{}/{}/config.json".format(framework, args.num), 'r') as f:
             dict_data = json.load(f)
         test_start_date, test_end_date, codes = datetime.strptime(dict_data['test_start_date'], '%Y-%m-%d'), datetime.strptime(dict_data['test_end_date'], '%Y-%m-%d'), dict_data['codes']
         env.get_data(test_start_date, test_end_date, features, window_length, market, codes)
         if framework == 'PG':
-            print("Loading PG Agent")
+            logger.info("Loading PG Agent")
             agent = PG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False, args.num)
         elif framework == 'DDPG':
-            print("Loading DDPG Agent")
+            logger.info("Loading DDPG Agent")
             agent = DDPG(len(codes) + 1, int(window_length), len(features), '-'.join(agent_config), True, False, args.num)
         backtest([agent], env, "", framework)

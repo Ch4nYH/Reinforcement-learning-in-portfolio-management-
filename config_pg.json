@@ -1,6 +1,6 @@
 {
-	"start_date":"2010-01-01",
-	"end_date":"2018-01-01",
+	"start_date":"20100101",
+	"end_date":"20180101",
 	"mark_types":"China",
 	"num_codes":5,
 	"features":["close","high", "low", "open"],
