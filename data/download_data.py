@@ -16,7 +16,7 @@ class DataDownloader:
         pro = ts.pro_api()
         stock_list = list(pro.stock_basic(exchange='', list_status='L', fields='ts_code')['ts_code'])
         self.stock_data = []
-        for stock in stock_list[:10]:
+        for stock in stock_list[:100]:
             self.stock_data.extend(pro.daily(ts_code=stock, start_date=start_date, end_date=end_date).iloc[:, [1, 0, 2, 5, 3, 4, -2]].values)
 
     def save_data(self):

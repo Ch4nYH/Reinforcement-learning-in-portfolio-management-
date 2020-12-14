@@ -4,14 +4,18 @@ from arguments import parser_args
 from session import session
 import random
 import tensorflow as tf
-from logging.config import dictConfig
 import logging_config
-dictConfig(logging_config.logging_config)
+import logging.config
+import logging
+
+logging.config.dictConfig(logging_config.logging_config)
+logger = logging.getLogger()
 
 
 def main():
+    logger.info("Initializing")
     args = parser_args()
-    tf.set_random_seed(args.seed)
+    tf.compat.v1.set_random_seed(args.seed)
     random.seed(args.seed)
     with open(args.config) as f:
         config = json.load(f)

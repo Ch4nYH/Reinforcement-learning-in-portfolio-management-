@@ -56,24 +56,11 @@ def build_feature_extractor(inputs, scope, trainable):
         net = tf.layers.flatten(net)
 
         return net
-
-
-def variables_summaries(var, name):
-    mean = tf.reduce_mean(var)
-
-    tf.summary.scalar(name + '_mean', mean)
-
-    std = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    tf.summary.scalar(name + '_stddev', std)
-
-    tf.summary.histogram(name + '_histogram', var)
-
-
 class StockActor:
     def __init__(self, sess,  M, L, N):
         # Initial hyperparaters
-        self.tau = 10e-3
-        self.learning_rate = 4e-2
+        self.tau = 1e-1
+        self.learning_rate = 1e-2
         self.gamma = 0.99
 
         # Initial session
@@ -93,7 +80,7 @@ class StockActor:
 
         self.init_op()
 
-        self.action_gradient = tf.placeholder(tf.float32, [None] + [self.M])
+        self.action_gradient = tf.compat.v1.placeholder(tf.float32, [None] + [self.M])
         self.unnormalized_actor_gradients = tf.gradients(self.out,
                                                          self.network_params,
                                                          -self.action_gradient)
@@ -101,14 +88,14 @@ class StockActor:
 
         # Optimization Op
         global_step = tf.Variable(0, trainable=False)
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(
+        self.optimize = tf.compat.v1.train.AdamOptimizer(self.learning_rate).apply_gradients(
             zip(self.actor_gradients, self.network_params),
             global_step=global_step)
 
         self.num_trainable_vars = len(self.network_params) + len(self.target_network_params)
 
     def init_input(self):
-        self.r = tf.placeholder(tf.float32, [None] + [1])
+        self.r = tf.compat.v1.placeholder(tf.float32, [None] + [1])
 
     def init_op(self):
         # update op
@@ -120,12 +107,12 @@ class StockActor:
 
     def build_actor(self, scope, trainable):
         with tf.name_scope(scope):
-            inputs = tf.placeholder(tf.float32, shape=[None] + [self.M] + [self.L] + [self.N], name='input')
+            inputs = tf.compat.v1.placeholder(tf.float32, shape=[None] + [self.M] + [self.L] + [self.N], name='input')
             x = build_feature_extractor(inputs, scope, trainable=trainable)
-            actions_previous = tf.placeholder(tf.float32, shape=[None] + [self.M])
+            actions_previous = tf.compat.v1.placeholder(tf.float32, shape=[None] + [self.M])
 
             net = tf.add(x, actions_previous)
-            w_init = tf.random_uniform_initializer(-0.5, 0.5)
+            w_init = tf.random_uniform_initializer(-1, 1)
             out = tf.layers.dense(net, self.M, activation=tf.nn.softmax, kernel_initializer=w_init)
 
             return inputs, out, actions_previous
@@ -150,7 +137,7 @@ class StockActor:
 class StockCritic:
     def __init__(self, sess, M, L, N):
         # Initial hyperparaters
-        self.tau = 1e-2
+        self.tau = 1e-1
         self.learning_rate = 2e-2
         self.gamma = 0.99
 
@@ -168,7 +155,7 @@ class StockCritic:
 
         self.init_op()
 
-        self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
+        self.predicted_q_value = tf.compat.v1.placeholder(tf.float32, [None, 1])
         self.loss = tf.losses.mean_squared_error(self.predicted_q_value, self.out)
 
         # Optimization Op
@@ -177,7 +164,7 @@ class StockCritic:
                                                    decay_steps=1000,
                                                    decay_rate=0.90, staircase=False)
 
-        self.optimize = tf.train.GradientDescentOptimizer(learning_rate).minimize(self.loss, global_step=global_step)
+        self.optimize = tf.compat.v1.train.GradientDescentOptimizer(learning_rate).minimize(self.loss, global_step=global_step)
         self.action_grads = tf.gradients(self.out, self.actions)
 
     def init_op(self):
@@ -190,9 +177,9 @@ class StockCritic:
 
     def build_critic(self, scope, trainable):
         with tf.name_scope(scope):
-            states = tf.placeholder(tf.float32, shape=[None] + [self.M, self.L, self.N])
-            actions = tf.placeholder(tf.float32, shape=[None] + [self.M])
-            actions_previous = tf.placeholder(tf.float32, shape=[None] + [self.M])
+            states = tf.compat.v1.placeholder(tf.float32, shape=[None] + [self.M, self.L, self.N])
+            actions = tf.compat.v1.placeholder(tf.float32, shape=[None] + [self.M])
+            actions_previous = tf.compat.v1.placeholder(tf.float32, shape=[None] + [self.M])
             net = build_feature_extractor(states, scope, trainable)
 
             net = tf.add(net, actions)
@@ -226,22 +213,6 @@ class StockCritic:
                                                            self.actions: actions,
                                                            self.previous_action: a_previous})
 
-
-def build_summaries():
-    # critic_loss=tf.Variable(0.)
-    reward = tf.Variable(0.)
-    # ep_ave_max_q=tf.Variable(0.)
-    # actor_loss=tf.Variable(0.)
-    # tf.summary.scalar('Critic_loss',critic_loss)
-    tf.summary.scalar('Reward', reward)
-    # tf.summary.scalar('Ep_ave_max_q',ep_ave_max_q)
-    # tf.summary.scalar('Actor_loss',actor_loss)
-
-    summary_vars = [reward]
-    summary_ops = tf.summary.merge_all()
-    return summary_ops, summary_vars
-
-
 class DDPG:
     def __init__(self, M, L, N, name, load_weights, trainable, number):
         # Initial buffer
@@ -256,28 +227,23 @@ class DDPG:
         # Initial Hyperparameters
         self.gamma = 0.99
         # Initial saver
-        self.saver = tf.train.Saver(max_to_keep=10)
+        self.saver = tf.compat.v1.train.Saver(max_to_keep=10)
 
         if load_weights:
             print("Loading Model")
             try:
-                checkpoint = tf.train.get_checkpoint_state('./result/DDPG/{}/{}/saved_network/'.format(self.name, self.number))
+                checkpoint = tf.train.get_checkpoint_state('./result/DDPG/{}/saved_network/'.format(self.number))
                 if checkpoint and checkpoint.model_checkpoint_path:
                     self.saver.restore(self.session, checkpoint.model_checkpoint_path)
                     print("Successfully loaded:", checkpoint.model_checkpoint_path)
                 else:
                     print("Could not find old network weights")
-                    self.session.run(tf.global_variables_initializer())
+                    self.session.run(tf.compat.v1.global_variables_initializer())
             except Exception:
                 print("Could not find old network weights")
-                self.session.run(tf.global_variables_initializer())
+                self.session.run(tf.compat.v1.global_variables_initializer())
         else:
-            self.session.run(tf.global_variables_initializer())
-
-        if trainable:
-            # Initial summary
-            self.summary_writer = tf.summary.FileWriter('./result/DDPG/{}/{}/'.format(self.name, self.number), self.session.graph)
-            self.summary_ops, self.summary_vars = build_summaries()
+            self.session.run(tf.compat.v1.global_variables_initializer())
 
     # online actor
     def predict(self, s, a_previous):
@@ -325,13 +291,7 @@ class DDPG:
         return s, a, r, not_terminal, s_next, action_previous
 
     def save_model(self):
-        self.saver.save(self.session, './result/DDPG/{}/{}/saved_network/'.format(self.name, self.number), global_step=self.global_step)
-
-    def write_summary(self, reward):
-        summary_str = self.session.run(self.summary_ops, feed_dict={
-            self.summary_vars[0]: reward,
-        })
-        self.summary_writer.add_summary(summary_str, self.session.run(self.global_step))
+        self.saver.save(self.session, './result/DDPG/{}/saved_network/{}'.format(self.number, self.name), global_step=self.global_step)
 
     def reset_buffer(self):
         self.buffer = list()

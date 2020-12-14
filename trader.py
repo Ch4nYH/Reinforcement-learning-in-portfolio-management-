@@ -5,7 +5,7 @@ from decimal import Decimal
 from matplotlib import pyplot as plt
 from agents.ornstein_uhlenbeck import OrnsteinUhlenbeckActionNoise
 import logging
-logger = logging.getLogger("default_handlers")
+logger = logging.getLogger()
 
 
 class StockTrader():
@@ -46,8 +46,7 @@ class StockTrader():
 
     def print_result(self, epoch, agent, noise_flag):
         self.total_reward = math.exp(self.total_reward) * 100
-        logger.info('Epoch: {:d}, Reward:{:.6f}%'.format(epoch, self.total_reward))
-        agent.write_summary(self.total_reward)
+        logger.info('Epoch: %d, Reward:%.6f', epoch, self.total_reward)
         agent.save_model()
 
     def plot_result(self):

@@ -16,7 +16,7 @@ class PG:
         self.learning_rate = 2e-2
         self.number = number
         # Build up models
-        self.session = tf.Session()
+        self.session = tf.compat.v1.Session()
 
         # Initial input shape
         self.M = M
@@ -26,22 +26,22 @@ class PG:
         self.global_step = tf.Variable(0, trainable=False)
 
         self.state, self.w_previous, self.out = self.build_net()
-        self.future_price = tf.placeholder(tf.float32, [None]+[self.M])
+        self.future_price = tf.compat.v1.placeholder(tf.float32, [None]+[self.M])
         self.pv_vector = tf.reduce_sum(self.out * self.future_price,
                                        reduction_indices=[1]) * self.pc()
         self.profit = tf.reduce_prod(self.pv_vector)
-        self.loss = -tf.reduce_mean(tf.log(self.pv_vector))
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate)\
+        self.loss = -tf.reduce_mean(tf.math.log(self.pv_vector))
+        self.optimize = tf.compat.v1.train.AdamOptimizer(self.learning_rate)\
             .minimize(self.loss, global_step=self.global_step)
 
         # Initial saver
-        self.saver = tf.train.Saver(max_to_keep=10)
+        self.saver = tf.compat.v1.train.Saver(max_to_keep=10)
 
         if load_weights:
             print("Loading Model")
             try:
                 checkpoint = \
-                    tf.train.get_checkpoint_state('./result/PG/{}/{}/saved_network/'.format(self.name, self.number))
+                    tf.train.get_checkpoint_state('./result/PG/{}/saved_network/'.format(self.number))
                 if checkpoint and checkpoint.model_checkpoint_path:
                     tf.reset_default_graph()
                     self.saver.restore(self.session,
@@ -50,35 +50,35 @@ class PG:
                           checkpoint.model_checkpoint_path)
                 else:
                     print("Could not find old network weights")
-                    self.session.run(tf.global_variables_initializer())
+                    self.session.run(tf.compat.v1.global_variables_initializer())
 
             except Exception:
                 print("Could not find old network weights")
-                self.session.run(tf.global_variables_initializer())
+                self.session.run(tf.compat.v1.global_variables_initializer())
         else:
-            self.session.run(tf.global_variables_initializer())
+            self.session.run(tf.compat.v1.global_variables_initializer())
 
         if trainable:
             # Initial summary
-            self.summary_writer = tf.summary.FileWriter('./result/PG/{}/{}/'.format(self.name, self.number),
+            self.summary_writer = tf.compat.v1.summary.FileWriter('./result/PG/{}/'.format(self.number),
                                                         self.session.graph)
             self.summary_ops, self.summary_vars = self.build_summaries()
 
     # 建立 policy gradient 神经网络 (有改变)
     def build_net(self):
-        state = tf.placeholder(tf.float32, shape=[None]+[self.M]+[self.L]+[self.N], name='market_situation')
-        network = tf.layers.Conv2D(2, [1, 2],
+        state = tf.compat.v1.placeholder(tf.float32, shape=[None]+[self.M]+[self.L]+[self.N], name='market_situation')
+        network = tf.compat.v1.layers.Conv2D(2, [1, 2],
                                    padding="valid",
                                    activation="relu")(state)
         width = network.get_shape()[2]
-        network = tf.layers.Conv2D(48, [1, width],
+        network = tf.compat.v1.layers.Conv2D(48, [1, width],
                                    padding="valid",
                                    activation="relu",
                                    kernel_regularizer=tf.keras.regularizers.l2(9e-5))(network)
-        w_previous = tf.placeholder(tf.float32, shape=[None, self.M])
+        w_previous = tf.compat.v1.placeholder(tf.float32, shape=[None, self.M])
         network = tf.concat([network, tf.reshape(w_previous,
                                                  [-1, self.M, 1, 1])], axis=3)
-        network = tf.layers.Conv2D(1, [1, network.get_shape()[2]],
+        network = tf.compat.v1.layers.Conv2D(1, [1, network.get_shape()[2]],
                                    padding="valid",
                                    activation="relu",
                                    kernel_regularizer=tf.keras.regularizers.l2(9e-5))(network)
@@ -120,7 +120,7 @@ class PG:
         self.buffer = list()
 
     def save_model(self):
-        path = './result/PG/{}/{}/saved_network/'.format(self.name, self.number)
+        path = './result/PG/{}/saved_network/'.format(self.number)
         if not os.path.exists(path):
             os.makedirs(path)
         self.saver.save(self.session, path + self.name, global_step=self.global_step)
@@ -136,7 +136,7 @@ class PG:
 
     def build_summaries(self):
         self.reward = tf.Variable(0.)
-        tf.summary.scalar('Reward', self.reward)
+        tf.compat.v1.summary.scalar('Reward', self.reward)
         summary_vars = [self.reward]
-        summary_ops = tf.summary.merge_all()
+        summary_ops = tf.compat.v1.summary.merge_all()
         return summary_ops, summary_vars
